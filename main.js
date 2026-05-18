@@ -1,258 +1,247 @@
-// === Audio System (Web Audio API) ===
+// === Audio System ===
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playTone(freq, type, duration, vol=0.1) {
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+function playTone(freq, type, dur, vol=0.1) {
+  if(audioCtx.state === 'suspended') audioCtx.resume();
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-  osc.stop(audioCtx.currentTime + duration);
+  osc.type = type; osc.frequency.value = freq;
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  osc.stop(audioCtx.currentTime + dur);
 }
-
-function playBeep() { 
-  playTone(1800, 'square', 0.1, 0.05); 
-  setTimeout(()=>playTone(2400, 'sine', 0.1, 0.05), 50);
-}
-
-function playSpawn() { 
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-  osc.stop(audioCtx.currentTime + 0.5);
-}
-
-function playErrorSound() {
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  const osc1 = audioCtx.createOscillator();
-  const osc2 = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc1.type = 'sawtooth'; osc2.type = 'square';
-  osc1.frequency.value = 100; osc2.frequency.value = 110;
-  osc1.connect(gain); osc2.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc1.start(); osc2.start();
-  gain.gain.value = 0.3;
-  
+function playSuccess() { playTone(1200, 'square', 0.1, 0.1); setTimeout(()=>playTone(1600, 'square', 0.2, 0.1), 100); }
+function playBeep() { playTone(600, 'sine', 0.1, 0.1); }
+function playAlarm() {
   let i = 0;
-  let interval = setInterval(() => {
-    osc1.frequency.value = i % 2 === 0 ? 150 : 100;
-    i++;
-    if(i > 15) { clearInterval(interval); osc1.stop(); osc2.stop(); }
-  }, 100);
+  const intv = setInterval(()=>{
+    playTone(i%2===0?600:400, 'square', 0.15, 0.2);
+    i++; if(i>15) clearInterval(intv);
+  }, 150);
 }
 
-// === Navigation Logic ===
+// === Navigation & Steps ===
 const stepTitles = [
-  "1-1. 文字列の表示とコメント",
-  "1-2. 文字列・数値の入力",
-  "1-3. 変数への代入と表示",
-  "1-4. 変数の値の更新",
-  "1-5. 文字列の連結",
-  "1-6. データ型の変換",
-  "1-7. 型変換して計算するプログラム"
+  "1-1. 文字列の表示とコメント", "1-2. 文字列・数値の入力", "1-3. 変数への代入と表示",
+  "1-4. 変数の値の更新", "1-5. 文字列の連結", "1-6. データ型の変換", "1-7. 文字列を数値に変換して計算"
 ];
 let currentStep = 1;
-
 function updateStep() {
   document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('step-' + currentStep).classList.add('active');
   document.getElementById('step-display').innerText = stepTitles[currentStep - 1];
-  playBeep();
+  playTone(1800, 'sine', 0.1);
+  clearWorld();
+  setupCodeForStep(currentStep);
 }
 function nextStep() { if(currentStep < 7) { currentStep++; updateStep(); } }
 function prevStep() { if(currentStep > 1) { currentStep--; updateStep(); } }
 
-// === Matter.js Physics System ===
-const Engine = Matter.Engine,
-      Render = Matter.Render,
-      Runner = Matter.Runner,
-      World = Matter.World,
-      Bodies = Matter.Bodies,
-      Body = Matter.Body,
-      Mouse = Matter.Mouse,
-      MouseConstraint = Matter.MouseConstraint;
+// === UI Logic (Code & Memory) ===
+let memoryMap = {}; // store variables
+
+function setCodeMonitor(codeStr) {
+  const lines = codeStr.trim().split('\n');
+  const html = lines.map((l, i) => `<span class="code-line" id="line-${i}">${l.replace(/ /g, '&nbsp;')}</span>`).join('\n');
+  document.getElementById('code-content').innerHTML = html;
+}
+function highlightLine(lineNums, isError = false) {
+  document.querySelectorAll('.code-line').forEach(el => { el.classList.remove('active'); el.classList.remove('error'); });
+  if(!Array.isArray(lineNums)) lineNums = [lineNums];
+  lineNums.forEach(num => {
+    if(num !== undefined && num !== null) {
+      const el = document.getElementById(`line-${num}`);
+      if(el) el.classList.add(isError ? 'error' : 'active');
+    }
+  });
+}
+function updateMemoryHUD() {
+  const keys = Object.keys(memoryMap);
+  if(keys.length === 0) {
+    document.getElementById('mem-content').innerHTML = "No variables";
+  } else {
+    document.getElementById('mem-content').innerHTML = keys.map(k => `${k} = ${memoryMap[k]}`).join('<br>');
+  }
+}
+
+function setupCodeForStep(step) {
+  highlightLine(null);
+  switch(step) {
+    case 1:
+      setCodeMonitor(`print('こんにちは')\n# print('さようなら')`);
+      break;
+    case 2:
+      setCodeMonitor(`print(3)\nprint(3 + 5)\nprint(3 - 5)\nprint(3 * 2)\nprint(3 / 2)\nprint(7 % 3)\nprint(2 ** 3)\nprint('3-5')`);
+      break;
+    case 3:
+      setCodeMonitor(`x = 20\ny = 'Tom'\nprint(x)\nprint(y)`);
+      break;
+    case 4:
+      setCodeMonitor(`x = 5\nx += 10\nx -= 5\nx *= 5\nx /= 5\nx %= 4`);
+      break;
+    case 5:
+      setCodeMonitor(`print('Hello' + 'everyone')\nname = 'Tom'\nprint('Hello' + name)\nprint('Hello', name)`);
+      break;
+    case 6:
+      setCodeMonitor(`price = 100\nprint('りんごは' + price + '円')\nprint('りんごは' + str(price) + '円')\nx = '10'\nprint(3 * int(x))\nprint(3 * float(x))\npoint = 100\nprint('テストは', point, '点')`);
+      break;
+    case 7:
+      setCodeMonitor(`x = '5'\ny = '0.5'\nprint('2x=', 2 * int(x))\nprint('x+y=', float(x) + float(y))`);
+      break;
+  }
+  updateMemoryHUD();
+}
+
+// === Matter.js Physics ===
+const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner,
+      World = Matter.World, Bodies = Matter.Bodies, Body = Matter.Body;
 
 const engine = Engine.create();
 const world = engine.world;
-world.gravity.y = 0.2; // Low gravity
 
-const w = window.innerWidth, h = window.innerHeight;
+let w = window.innerWidth, h = window.innerHeight;
 const ground = Bodies.rectangle(w/2, h+50, w*2, 100, { isStatic: true });
 const leftWall = Bodies.rectangle(-50, h/2, 100, h*2, { isStatic: true });
 const rightWall = Bodies.rectangle(w+50, h/2, 100, h*2, { isStatic: true });
-const ceiling = Bodies.rectangle(w/2, -100, w*2, 100, { isStatic: true });
-World.add(world, [ground, leftWall, rightWall, ceiling]);
+World.add(world, [ground, leftWall, rightWall]);
 
-const mouse = Mouse.create(document.body);
-const mouseConstraint = MouseConstraint.create(engine, {
-  mouse: mouse,
-  constraint: { stiffness: 0.2, render: { visible: false } }
+window.addEventListener('resize', () => {
+  w = window.innerWidth; h = window.innerHeight;
+  Body.setPosition(ground, {x: w/2, y: h+50});
+  Body.setPosition(leftWall, {x: -50, y: h/2});
+  Body.setPosition(rightWall, {x: w+50, y: h/2});
 });
-World.add(world, mouseConstraint);
 
-const runner = Runner.create();
-Runner.run(runner, engine);
+Runner.run(Runner.create(), engine);
 
-// Sync DOM elements with Matter.js bodies
-const domBodies = [];
-Matter.Events.on(engine, 'afterUpdate', function() {
+let domBodies = [];
+Matter.Events.on(engine, 'afterUpdate', () => {
   domBodies.forEach(obj => {
     obj.elem.style.transform = `translate(${obj.body.position.x - obj.w/2}px, ${obj.body.position.y - obj.h/2}px) rotate(${obj.body.angle}rad)`;
   });
 });
 
-let varsMap = {};
-let varSpawnCount = 0;
-
-// Spawn Element
 function spawnDOM(text, color, isGhost = false, isEmoji = false) {
-  playSpawn();
   const div = document.createElement('div');
-  div.className = 'phys-obj';
-  if(isEmoji) div.classList.add('emoji');
-  if(isGhost) div.classList.add('ghost');
-  if(color && !isEmoji && !isGhost) {
-    div.style.borderColor = color;
-    div.style.boxShadow = `0 0 15px ${color}88`;
-  }
-  div.innerText = text;
+  div.className = 'phys-obj ' + (isEmoji ? 'emoji' : 'code-obj');
+  if(isGhost) { div.style.opacity = '0.4'; div.style.borderStyle = 'dashed'; }
+  if(color && !isEmoji) { div.style.borderColor = color; div.style.color = color; div.style.boxShadow = `0 0 15px ${color}aa`; }
+  
+  div.innerHTML = text;
   document.getElementById('world').appendChild(div);
   
-  // Measure size invisibly
   div.style.transform = 'translate(-1000px, -1000px)';
   const rect = div.getBoundingClientRect();
-  const width = rect.width;
-  const height = rect.height;
+  const width = rect.width, height = rect.height;
   
-  // Start position (drop from top right center)
-  const x = window.innerWidth / 2 + 100 + (Math.random() * 200);
-  const y = -50;
-  
-  const body = Bodies.rectangle(x, y, width, height, {
-    restitution: 0.7,
-    frictionAir: 0.04,
-    density: isEmoji ? 0.001 : 0.005
+  const body = Bodies.rectangle(w/2 + (Math.random()*100-50), -50, width, height, {
+    restitution: isGhost ? 0.2 : 0.8,
+    density: isEmoji ? 0.001 : 0.005,
+    isSensor: isGhost
   });
   
   World.add(world, body);
-  domBodies.push({ body: body, elem: div, w: width, h: height });
-  
-  // Initial gentle push
-  Body.applyForce(body, body.position, { x: (Math.random() - 0.5) * 0.05, y: 0.05 });
-  
-  // Animation for DOM
-  gsap.from(div, { opacity: 0, scale: 0.5, duration: 0.5, ease: 'back.out(1.5)' });
-  
-  return { body, elem: div, w: width, h: height };
+  domBodies.push({ id: body.id, body, elem: div, w: width, h: height });
+  gsap.from(div, { opacity: 0, scale: 0.5, duration: 0.4, ease: 'back.out(2)' });
+  playBeep();
+  return { body, elem: div };
 }
 
-// Spawn Static Variable Box
-function spawnVar(varName, value) {
-  playBeep(); // Use different sound to indicate memory storage
+let varBoxes = {};
+function spawnVar(name, val) {
+  memoryMap[name] = val;
+  updateMemoryHUD();
   
-  if (varsMap[varName]) {
-    const v = varsMap[varName];
-    v.elem.innerText = `📦 ${varName} = ${value}`;
-    
-    // Re-measure after text change
-    const rect = v.elem.getBoundingClientRect();
-    const scaleX = rect.width / v.w;
-    const scaleY = rect.height / v.h;
-    Body.scale(v.body, scaleX, scaleY);
-    v.w = rect.width;
-    v.h = rect.height;
-    
-    // GSAP pulse animation
-    gsap.fromTo(v.elem, 
-      { scale: 1.5, filter: 'brightness(2)' }, 
-      { scale: 1, filter: 'brightness(1)', duration: 0.5, ease: 'elastic.out(1, 0.3)' }
-    );
-  } else {
-    // Spawn new static box
+  if(!varBoxes[name]) {
+    const slots = Object.keys(varBoxes).length;
     const div = document.createElement('div');
     div.className = 'phys-obj var-box';
-    div.innerText = `📦 ${varName} = ${value}`;
     document.getElementById('world').appendChild(div);
-    
-    div.style.transform = 'translate(-1000px, -1000px)';
-    const rect = div.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    
-    // Position on the right side of the screen
-    const x = window.innerWidth - 150;
-    const y = 100 + varSpawnCount * 60;
-    varSpawnCount++;
-    
-    const body = Bodies.rectangle(x, y, width, height, {
-      isStatic: true
-    });
-    
+    const body = Bodies.rectangle(w - 150, h - 50 - (slots * 70), 200, 50, { isStatic: true });
     World.add(world, body);
-    domBodies.push({ body: body, elem: div, w: width, h: height });
-    varsMap[varName] = { body: body, elem: div, w: width, h: height };
-    
-    // Animate appearance
-    gsap.from(div, { opacity: 0, x: 50, duration: 0.5, ease: 'back.out(1.5)' });
+    varBoxes[name] = { body, elem: div, w: 200, h: 50 };
+    domBodies.push(varBoxes[name]);
+  }
+  varBoxes[name].elem.innerHTML = `📦 ${name} = ${val}`;
+  gsap.fromTo(varBoxes[name].elem, {scale: 1.2, backgroundColor: '#fff'}, {scale: 1, backgroundColor: 'rgba(20,0,40,0.9)', duration: 0.5});
+  playSuccess();
+}
+
+function clearWorld() {
+  domBodies.forEach(b => { World.remove(world, b.body); b.elem.remove(); });
+  domBodies = []; varBoxes = {}; memoryMap = {};
+  world.gravity.y = 1;
+}
+
+// === Step Actions ===
+
+function runStep1(idx) {
+  highlightLine(idx);
+  if(idx === 0) { spawnDOM("こんにちは", "#0ff"); }
+  else { spawnDOM("さようなら", "#666", true); }
+}
+
+function runStep2(idx) {
+  highlightLine(idx);
+  const results = ["3", "8", "-2", "6", "1.5", "1", "8", "3-5"];
+  const color = idx === 7 ? "#50fa7b" : "#8be9fd";
+  spawnDOM(results[idx], color);
+}
+
+function runStep3(idx) {
+  highlightLine(idx);
+  if(idx===0) { spawnVar('x', '20'); }
+  if(idx===1) { spawnVar('y', "'Tom'"); setTimeout(()=>spawnDOM('👨‍🚀', '', false, true), 300); }
+  if(idx===2) { spawnDOM("20", "#8be9fd"); }
+  if(idx===3) { spawnDOM("Tom", "#50fa7b"); }
+}
+
+function runStep4(idx) {
+  highlightLine(idx);
+  const vals = ["5", "15", "10", "50", "10.0", "2.0"];
+  spawnVar('x', vals[idx]);
+}
+
+function runStep5(idx) {
+  highlightLine(idx);
+  if(idx===0) spawnDOM("Hello everyone", "#50fa7b");
+  if(idx===1) { spawnVar('name', "'Tom'"); setTimeout(()=>spawnDOM('👨‍🚀', '', false, true), 300); }
+  if(idx===2 || idx===3) spawnDOM("Hello Tom", "#50fa7b");
+}
+
+function runStep6(idx) {
+  if(idx===0) {
+    highlightLine(1, true);
+    triggerError();
+    setTimeout(()=>spawnDOM('🍎', '', false, true), 100);
+  } else {
+    highlightLine(idx+1);
+    if(idx===1) { spawnDOM("りんごは100円です", "#50fa7b"); setTimeout(()=>spawnDOM('🍎', '', false, true), 300); }
+    if(idx===2 || idx===3) { memoryMap['x'] = "'10'"; updateMemoryHUD(); spawnDOM(idx===2?"30":"30.0", "#8be9fd"); }
+    if(idx===4) { memoryMap['point'] = "100"; updateMemoryHUD(); spawnDOM("テストは 100 点", "#50fa7b"); setTimeout(()=>spawnDOM('💯', '', false, true), 300); }
   }
 }
 
-// Stage 1-6 Error Gimmick
+function runStep7(idx) {
+  highlightLine(idx);
+  if(idx===0) { spawnVar('x', "'5'"); setTimeout(()=>spawnVar('y', "'0.5'"), 200); }
+  if(idx===1) spawnDOM("2x= 10", "#8be9fd");
+  if(idx===2) spawnDOM("x+y= 5.5", "#8be9fd");
+}
+
 function triggerError() {
-  playErrorSound();
+  playAlarm();
+  world.gravity.y = -0.2;
   document.getElementById('error-screen').style.display = 'flex';
-  world.gravity.y = 0; // Anti-gravity chaos
-  
-  // Explosion force to all bodies
-  domBodies.forEach(obj => {
-    Body.applyForce(obj.body, obj.body.position, {
-      x: (Math.random() - 0.5) * 0.8,
-      y: (Math.random() - 0.5) * 0.8
-    });
-    Body.setAngularVelocity(obj.body, (Math.random() - 0.5) * 0.5);
-    
-    // GSAP glitch visual
-    gsap.to(obj.elem, {
-      x: () => Math.random() * 20 - 10,
-      y: () => Math.random() * 20 - 10,
-      duration: 0.1,
-      yoyo: true,
-      repeat: 10
-    });
-  });
+  for(let i=0; i<30; i++) {
+    spawnDOM('⚠️', '', false, true);
+  }
 }
 
 function recoverSystem() {
-  playBeep();
   document.getElementById('error-screen').style.display = 'none';
-  world.gravity.y = 0.2; // Restore gravity
-  
-  // Settle bodies
-  domBodies.forEach(obj => {
-    Body.setVelocity(obj.body, {x:0, y:0});
-    Body.setAngularVelocity(obj.body, 0);
-  });
+  clearWorld();
+  playTone(1800, 'sine', 0.1);
+  setupCodeForStep(currentStep);
 }
 
-// Window resize handling
-window.addEventListener('resize', () => {
-  Body.setPosition(ground, {x: window.innerWidth/2, y: window.innerHeight+50});
-  Body.setPosition(rightWall, {x: window.innerWidth+50, y: window.innerHeight/2});
-});
-
-// Init
 updateStep();
