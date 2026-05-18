@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cyber Python Demo</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+
+<div id="header">
+  <button class="nav-btn" onclick="prevStep()">◀ Prev</button>
+  <div class="step-indicator" id="step-display">1-1. 文字列の表示とコメント</div>
+  <button class="nav-btn" onclick="nextStep()">Next ▶</button>
+</div>
+
+<div id="content">
+  <!-- 1-1 -->
+  <div class="step-panel" id="step-1">
+    <h2>1-1. 文字列の表示とコメント</h2>
+    <div class="code-block">print('こんにちは')</div>
+    <button class="run-btn" onclick="spawnDOM('こんにちは', '#0ff')">▶ Run</button>
+    <div class="code-block" style="color:#888; border-left-color:#888;"># print('さようなら')</div>
+    <button class="run-btn" onclick="spawnDOM('さようなら', '#666', true)" style="color:#888; border-color:#888;">▶ Run</button>
+  </div>
+  
+  <!-- 1-2 -->
+  <div class="step-panel" id="step-2">
+    <h2>1-2. 文字列・数値の入力</h2>
+    <button class="run-btn" onclick="spawnDOM('3', '#8be9fd')">▶ print(3)</button>
+    <button class="run-btn" onclick="spawnDOM('8', '#8be9fd')">▶ print(3 + 5)</button>
+    <button class="run-btn" onclick="spawnDOM('-2', '#8be9fd')">▶ print(3 - 5)</button>
+    <button class="run-btn" onclick="spawnDOM('6', '#8be9fd')">▶ print(3 * 2)</button>
+    <button class="run-btn" onclick="spawnDOM('1.5', '#8be9fd')">▶ print(3 / 2)</button>
+    <button class="run-btn" onclick="spawnDOM('1', '#8be9fd')">▶ print(7 % 3)</button>
+    <button class="run-btn" onclick="spawnDOM('8', '#8be9fd')">▶ print(2 ** 3)</button>
+    <button class="run-btn" onclick="spawnDOM('3-5', '#50fa7b')">▶ print('3-5')</button>
+  </div>
+  
+  <!-- 1-3 -->
+  <div class="step-panel" id="step-3">
+    <h2>1-3. 変数への代入と表示</h2>
+    <button class="run-btn" onclick="spawnVar('x', '20')">▶ x = 20</button>
+    <button class="run-btn" onclick="spawnVar('y', '\'Tom\''); setTimeout(()=>spawnDOM('👨‍🚀', '', true, true), 300)">▶ y = 'Tom'</button>
+    <button class="run-btn" onclick="spawnDOM('20', '#8be9fd')">▶ print(x)</button>
+    <button class="run-btn" onclick="spawnDOM('Tom', '#50fa7b')">▶ print(y)</button>
+  </div>
+  
+  <!-- 1-4 -->
+  <div class="step-panel" id="step-4">
+    <h2>1-4. 変数の値の更新</h2>
+    <div class="code-block">x = 5</div>
+    <button class="run-btn" onclick="spawnVar('x', '5')" style="border-color:#bd93f9; color:#bd93f9;">▶ 変数 x を初期化</button>
+    <button class="run-btn" onclick="spawnVar('x', '15')">▶ x += 10</button>
+    <button class="run-btn" onclick="spawnVar('x', '10')">▶ x -= 5</button>
+    <button class="run-btn" onclick="spawnVar('x', '50')">▶ x *= 5</button>
+    <button class="run-btn" onclick="spawnVar('x', '10.0')">▶ x /= 5</button>
+    <button class="run-btn" onclick="spawnVar('x', '2.0')">▶ x %= 4</button>
+  </div>
+  
+  <!-- 1-5 -->
+  <div class="step-panel" id="step-5">
+    <h2>1-5. 文字列の連結</h2>
+    <button class="run-btn" onclick="spawnDOM('Hello everyone', '#50fa7b')">▶ print('Hello' + 'everyone')</button>
+    <button class="run-btn" onclick="spawnVar('name', '\'Tom\''); setTimeout(()=>spawnDOM('👨‍🚀', '', true, true), 300)">▶ name = 'Tom'</button>
+    <button class="run-btn" onclick="spawnDOM('Hello Tom', '#50fa7b')">▶ print('Hello' + name)</button>
+    <button class="run-btn" onclick="spawnDOM('Hello Tom', '#50fa7b')">▶ print('Hello', name)</button>
+  </div>
+  
+  <!-- 1-6 -->
+  <div class="step-panel" id="step-6">
+    <h2>1-6. データ型の変換</h2>
+    <div class="code-block">price = 100<br>print('りんごは' + price + '円です')</div>
+    <button class="run-btn error" onclick="triggerError(); setTimeout(()=>spawnDOM('🍎', '', false, true), 100)">⚠️ Run (型エラー爆発)</button>
+    <div class="code-block">print('りんごは' + str(price) + '円です')</div>
+    <button class="run-btn" onclick="spawnDOM('りんごは100円です', '#50fa7b'); setTimeout(()=>spawnDOM('🍎', '', false, true), 300)">▶ Run (str変換で安全結合)</button>
+    <button class="run-btn" onclick="spawnDOM('30', '#8be9fd')">▶ print(3 * int(x))</button>
+    <button class="run-btn" onclick="spawnDOM('1.5', '#8be9fd')">▶ print(3 * float(x))</button>
+    <button class="run-btn" onclick="spawnDOM('テストは 💯 点でした', '#50fa7b'); setTimeout(()=>spawnDOM('💯', '', false, true), 300)">▶ print('テストは', point, '点でした')</button>
+  </div>
+  
+  <!-- 1-7 -->
+  <div class="step-panel" id="step-7">
+    <h2>1-7. 文字列を数値に変換して計算</h2>
+    <div class="code-block">x = '5'<br>y = '0.5'</div>
+    <button class="run-btn" onclick="spawnVar('x', '\'5\''); setTimeout(()=>spawnVar('y', '\'0.5\''), 200)">▶ 変数をセット</button>
+    <button class="run-btn" onclick="spawnDOM('2x= 10', '#8be9fd')">▶ print('2x=', 2 * int(x))</button>
+    <button class="run-btn" onclick="spawnDOM('x+y= 5.5', '#8be9fd')">▶ print('x+y=', float(x) + float(y))</button>
+  </div>
+</div>
+
+<div id="world"></div>
+
+<div id="error-screen">
+  <div id="error-text">⚠️ERROR: 時空歪曲発生⚠️<br><span style="font-size:1.5rem; color:#fff;">TypeError: can only concatenate str (not "int") to str</span></div>
+  <button class="recover-btn" onclick="recoverSystem()">SYSTEM RECOVER</button>
+</div>
+
+<script src="main.js"></script>
+</body>
+</html>
