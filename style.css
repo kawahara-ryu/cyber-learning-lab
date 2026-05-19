@@ -88,6 +88,24 @@ h2 { margin-top: 0; font-size: 1.2rem; color: #f0f; text-shadow: 0 0 5px #f0f; b
   padding: 15px 30px; font-size: 1.5rem; cursor: pointer; box-shadow: 0 0 20px #0ff;
 }
 
+@media (max-width: 1400px) {
+  #header { height: 50px; }
+  .nav-btn { padding: 6px 14px; font-size: 0.9rem; }
+  .step-indicator { font-size: 1.2rem; width: 350px; }
+  #content { width: 280px; top: 65px; left: 10px; }
+  .step-panel { padding: 12px; }
+  h2 { font-size: 1rem; }
+  .run-btn { padding: 8px 10px; font-size: 0.95rem; }
+  #memory-hud { top: 60px; right: 10px; font-size: 1.1rem; padding: 8px 12px; }
+  #code-monitor { top: 130px; right: 10px; width: 300px; }
+  #code-content { font-size: 1rem; line-height: 1.4; padding: 10px; }
+  .phys-obj { font-size: 1.3rem; padding: 8px 14px; }
+  .phys-obj.emoji { font-size: 3.5rem; }
+  .var-box { font-size: 1rem; }
+  #error-text { font-size: 2rem; }
+  .recover-btn { font-size: 1.2rem; padding: 10px 20px; }
+}
+
 @media (max-width: 900px) {
   #content { width: 40%; left: 2.5%; }
   #code-monitor { width: 45%; right: 2.5%; }
